@@ -5,8 +5,6 @@
 const CONFIG = {
   substackUrl: 'https://outpostmedia.substack.com',
   rssFeed: 'https://outpostmedia.substack.com/feed',
-  // CORS proxy to fetch RSS directly (no API key needed)
-  corsProxy: 'https://api.allorigins.win/get?url=',
   maxItems: 50,
 
   streams: {
@@ -113,32 +111,48 @@ function buildFooter() {
   `;
 }
 
-// ── RSS FETCH (direct, no API key) ────────────────────────────
+// ── RSS FETCH — tries multiple proxies ────────────────────────
 async function fetchRSS() {
-  try {
-    const proxyUrl = CONFIG.corsProxy + encodeURIComponent(CONFIG.rssFeed);
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const xmlStr = json.contents;
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlStr, 'text/xml');
-    const items = Array.from(xml.querySelectorAll('item'));
-    return items.map(parseItem);
-  } catch (err) {
-    console.error('RSS fetch failed:', err);
-    return null;
+  const proxies = [
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  ];
+
+  for (const makeUrl of proxies) {
+    try {
+      const res = await fetch(makeUrl(CONFIG.rssFeed));
+      if (!res.ok) continue;
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, 'text/xml');
+      // Check it parsed correctly
+      if (xml.querySelector('parsererror')) continue;
+      const items = Array.from(xml.querySelectorAll('item'));
+      if (items.length === 0) continue;
+      console.log(`RSS loaded via proxy: ${makeUrl(CONFIG.rssFeed).split('?')[0]}`);
+      return items.map(parseItem);
+    } catch (err) {
+      console.warn('Proxy failed, trying next...', err.message);
+    }
   }
+
+  console.error('All proxies failed');
+  return null;
 }
 
 function parseItem(item) {
-  const get = (tag) => item.querySelector(tag)?.textContent?.trim() || '';
-  const enclosure = item.querySelector('enclosure');
+  const get = tag => {
+    // Handle namespaced tags like content:encoded
+    const el = item.querySelector(tag) || item.getElementsByTagNameNS('*', tag.split(':').pop())[0];
+    return el?.textContent?.trim() || '';
+  };
 
-  // Extract thumbnail from enclosure or from content img tags
+  const enclosure = item.querySelector('enclosure');
   let thumbnail = enclosure?.getAttribute('url') || '';
+
+  // Pull first image from content if no enclosure
   if (!thumbnail) {
-    // Try to pull first image src from content
     const content = get('encoded') || get('description');
     const match = content.match(/src="(https:\/\/substackcdn[^"]+)"/);
     if (match) thumbnail = match[1];
@@ -154,41 +168,30 @@ function parseItem(item) {
   };
 }
 
-// ── STREAM DETECTION (from title & content) ───────────────────
-// Since Substack doesn't pass categories through RSS,
-// we detect stream from the article title and content preamble.
+// ── STREAM DETECTION ──────────────────────────────────────────
 function getItemStream(item) {
   const title   = (item.title   || '').toLowerCase();
-  const content = (item.content || '').toLowerCase().slice(0, 400); // check preamble only
+  const content = (item.content || '').toLowerCase().slice(0, 500);
 
-  // Briefs — detected from title suffix pattern
-  if (title.includes('flashpoint file'))  return 'briefs';
-  if (title.includes('atlas file'))       return 'briefs';
-  if (title.includes('concept file'))     return 'briefs';
-  if (title.includes('outpost brief'))    return 'briefs';
+  if (title.includes('flashpoint file'))              return 'briefs';
+  if (title.includes('atlas file'))                   return 'briefs';
+  if (title.includes('concept file'))                 return 'briefs';
+  if (title.includes('outpost brief'))                return 'briefs';
+  if (content.includes('outpost briefs are here'))    return 'briefs';
 
-  // Press Check — title or preamble
-  if (title.includes('press check'))      return 'presscheck';
-  if (content.includes('press check is a series')) return 'presscheck';
+  if (title.includes('press check'))                  return 'presscheck';
+  if (content.includes('press check is a series'))    return 'presscheck';
 
-  // Honest Atheism — title or preamble
-  if (title.includes('honest atheism'))   return 'atheism';
-  if (content.includes('honest atheism is a space')) return 'atheism';
+  if (title.includes('honest atheism'))               return 'atheism';
+  if (content.includes('honest atheism is a space'))  return 'atheism';
 
-  // Outpost Reports — preamble
-  if (content.includes('outpost reports')) return 'reports';
-
-  // Briefs preamble (fallback)
-  if (content.includes('outpost briefs are here')) return 'briefs';
-
-  return 'reports'; // anything undetected defaults to Outpost Reports
+  return 'reports'; // default — anything else goes to Outpost Reports
 }
 
-// Sub-type within Briefs
 function getBriefType(item) {
   const title = (item.title || '').toLowerCase();
-  if (title.includes('concept file'))   return 'concept';
-  if (title.includes('atlas file'))     return 'atlas';
+  if (title.includes('concept file'))    return 'concept';
+  if (title.includes('atlas file'))      return 'atlas';
   if (title.includes('flashpoint file')) return 'flashpoint';
   return 'other';
 }
@@ -208,7 +211,6 @@ function formatDate(dateStr) {
 function cleanExcerpt(html, maxLen = 160) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html || '';
-  // Remove the strikethrough preamble (~~...~~) if present
   const text = (tmp.textContent || tmp.innerText || '').replace(/~~.*?~~/gs, '').trim();
   return text.length > maxLen ? text.slice(0, maxLen).trimEnd() + '…' : text;
 }
