@@ -4,33 +4,27 @@
 
 const CONFIG = {
   substackUrl: 'https://outpostmedia.substack.com',
-  rssFeed: 'https://outpostmedia.substack.com/feed',
-  maxItems: 50,
 
   streams: {
     reports: {
       label: 'Outpost Reports',
       slug: 'outpost-reports',
       color: '#c49a38',
-      description: 'Long-form essays examining politics, society, culture, and institutions.',
     },
     presscheck: {
       label: 'Press Check',
       slug: 'press-check',
       color: '#4e8ab0',
-      description: 'Media criticism focused on narratives, framing, omissions, and incentives.',
     },
     atheism: {
       label: 'Honest Atheism',
       slug: 'honest-atheism',
       color: '#b85840',
-      description: 'Writings on religion, belief, and secularism in modern society.',
     },
     briefs: {
       label: 'Outpost Briefs',
       slug: 'outpost-briefs',
       color: '#5a8858',
-      description: 'Concept Files, Atlas Files, and Flashpoint Files.',
     },
   },
 };
@@ -111,61 +105,17 @@ function buildFooter() {
   `;
 }
 
-// ── RSS FETCH — tries multiple proxies ────────────────────────
+// ── FETCH — reads feed.json committed by GitHub Action ────────
 async function fetchRSS() {
-  const proxies = [
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-  ];
-
-  for (const makeUrl of proxies) {
-    try {
-      const res = await fetch(makeUrl(CONFIG.rssFeed));
-      if (!res.ok) continue;
-      const text = await res.text();
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'text/xml');
-      // Check it parsed correctly
-      if (xml.querySelector('parsererror')) continue;
-      const items = Array.from(xml.querySelectorAll('item'));
-      if (items.length === 0) continue;
-      console.log(`RSS loaded via proxy: ${makeUrl(CONFIG.rssFeed).split('?')[0]}`);
-      return items.map(parseItem);
-    } catch (err) {
-      console.warn('Proxy failed, trying next...', err.message);
-    }
+  try {
+    const res = await fetch('feed.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const items = await res.json();
+    return items;
+  } catch (err) {
+    console.error('Could not load feed.json:', err);
+    return null;
   }
-
-  console.error('All proxies failed');
-  return null;
-}
-
-function parseItem(item) {
-  const get = tag => {
-    // Handle namespaced tags like content:encoded
-    const el = item.querySelector(tag) || item.getElementsByTagNameNS('*', tag.split(':').pop())[0];
-    return el?.textContent?.trim() || '';
-  };
-
-  const enclosure = item.querySelector('enclosure');
-  let thumbnail = enclosure?.getAttribute('url') || '';
-
-  // Pull first image from content if no enclosure
-  if (!thumbnail) {
-    const content = get('encoded') || get('description');
-    const match = content.match(/src="(https:\/\/substackcdn[^"]+)"/);
-    if (match) thumbnail = match[1];
-  }
-
-  return {
-    title:       get('title'),
-    link:        get('link'),
-    pubDate:     get('pubDate'),
-    description: get('description'),
-    content:     get('encoded') || get('description'),
-    thumbnail,
-  };
 }
 
 // ── STREAM DETECTION ──────────────────────────────────────────
@@ -185,7 +135,7 @@ function getItemStream(item) {
   if (title.includes('honest atheism'))               return 'atheism';
   if (content.includes('honest atheism is a space'))  return 'atheism';
 
-  return 'reports'; // default — anything else goes to Outpost Reports
+  return 'reports';
 }
 
 function getBriefType(item) {
