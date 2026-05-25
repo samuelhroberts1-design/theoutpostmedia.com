@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outpost Reports — Outpost Media</title>
+  <meta name="description" content="Long-form essays examining politics, society, culture, and institutions — slowing down the conversation to prioritise context and complexity.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="reports">
+
+  <header id="site-nav"></header>
+
+  <div class="page-header">
+    <div class="container fade-up">
+      <div class="stream-color-bar" style="background:var(--reports)"></div>
+      <p class="eyebrow" style="color:var(--reports);margin-bottom:0.75rem">Content Stream</p>
+      <h1>Outpost Reports</h1>
+      <p>Long-form essays examining politics, society, culture, and institutions. These pieces aim to slow down the conversation, prioritise context, highlight underdiscussed angles, and explore complexity without partisan framing.</p>
+    </div>
+  </div>
+
+  <main class="stream-articles container">
+    <div class="articles-grid" id="articles-grid">
+      <div class="loading-state"><span class="loading-dots">Loading</span></div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="app.js"></script>
+  <script>
+    async function loadStream() {
+      const grid = document.getElementById('articles-grid');
+      const items = await fetchRSS();
+      if (!items) { grid.innerHTML = renderError(); return; }
+      const filtered = filterByStream(items, 'reports');
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="loading-state">No Outpost Reports yet — <a href="${CONFIG.substackUrl}" target="_blank" style="color:var(--gold)">check Substack</a><br><br><small style="font-size:0.7rem;color:var(--text-muted)">Tip: tag your Substack posts with "Outpost Reports" to display them here automatically.</small></div>`;
+      } else {
+        grid.innerHTML = filtered.map(item => renderCard(item, { streamKey: 'reports' })).join('');
+      }
+    }
+    loadStream();
+  </script>
+</body>
+</html>

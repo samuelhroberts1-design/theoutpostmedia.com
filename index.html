@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outpost Media — Independent. Educational. Honest.</title>
+  <meta name="description" content="Outpost Media is an independent Australian writing project at the intersection of journalism, education, and commentary. Essays on politics, society, religion, and the ideas that shape public life.">
+  <meta property="og:title" content="Outpost Media">
+  <meta property="og:description" content="Independent. Educational. Honest.">
+  <meta property="og:url" content="https://theoutpostmedia.com">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home">
+
+  <!-- Navigation (injected by app.js) -->
+  <header id="site-nav"></header>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-inner">
+
+        <div class="hero-text fade-up fade-up-1">
+          <p class="hero-date">theoutpostmedia.com</p>
+          <h1 class="hero-headline">Where the View<br><em>Is Clearer.</em></h1>
+          <p class="hero-sub">An independent Australian publication at the intersection of journalism, education, and commentary — exploring the ideas that shape public life without partisan framing.</p>
+          <div class="hero-meta">
+            <a href="https://outpostmedia.substack.com" class="btn btn-gold" target="_blank" rel="noopener">Subscribe Free ↗</a>
+            <a href="about.html" class="btn">About the Project</a>
+          </div>
+        </div>
+
+        <div class="hero-visual fade-up fade-up-3">
+          <div class="hero-streams" id="hero-streams">
+            <a href="outpost-reports.html" class="hero-stream-card">
+              <span class="hero-stream-dot" style="background:var(--reports)"></span>
+              <span class="hero-stream-label">Outpost Reports</span>
+              <span class="hero-stream-count">Long-form essays</span>
+            </a>
+            <a href="press-check.html" class="hero-stream-card">
+              <span class="hero-stream-dot" style="background:var(--presscheck)"></span>
+              <span class="hero-stream-label">Press Check</span>
+              <span class="hero-stream-count">Media criticism</span>
+            </a>
+            <a href="honest-atheism.html" class="hero-stream-card">
+              <span class="hero-stream-dot" style="background:var(--atheism)"></span>
+              <span class="hero-stream-label">Honest Atheism</span>
+              <span class="hero-stream-count">Religion &amp; belief</span>
+            </a>
+            <a href="outpost-briefs.html" class="hero-stream-card">
+              <span class="hero-stream-dot" style="background:var(--briefs)"></span>
+              <span class="hero-stream-label">Outpost Briefs</span>
+              <span class="hero-stream-count">Concept · Atlas · Flashpoint</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LATEST ARTICLES ── -->
+  <main>
+    <section class="articles-section container">
+      <div class="section-header">
+        <span class="section-title all">Latest Writing</span>
+        <a href="https://outpostmedia.substack.com" class="section-link" target="_blank" rel="noopener">All on Substack ↗</a>
+      </div>
+      <div class="articles-grid" id="latest-grid">
+        <div class="loading-state"><span class="loading-dots">Loading</span></div>
+      </div>
+    </section>
+
+    <!-- Reports preview -->
+    <section class="home-stream container">
+      <div class="section-header">
+        <span class="section-title reports">Outpost Reports</span>
+        <a href="outpost-reports.html" class="section-link">View all →</a>
+      </div>
+      <div class="articles-grid" id="reports-grid">
+        <div class="loading-state"><span class="loading-dots">Loading</span></div>
+      </div>
+    </section>
+
+    <!-- Press Check preview -->
+    <section class="home-stream container">
+      <div class="section-header">
+        <span class="section-title presscheck">Press Check</span>
+        <a href="press-check.html" class="section-link">View all →</a>
+      </div>
+      <div class="articles-grid" id="presscheck-grid">
+        <div class="loading-state"><span class="loading-dots">Loading</span></div>
+      </div>
+    </section>
+
+    <!-- Honest Atheism preview -->
+    <section class="home-stream container">
+      <div class="section-header">
+        <span class="section-title atheism">Honest Atheism</span>
+        <a href="honest-atheism.html" class="section-link">View all →</a>
+      </div>
+      <div class="articles-grid" id="atheism-grid">
+        <div class="loading-state"><span class="loading-dots">Loading</span></div>
+      </div>
+    </section>
+
+    <!-- Outpost Briefs preview -->
+    <section class="home-stream container" style="padding-bottom:5rem">
+      <div class="section-header">
+        <span class="section-title briefs">Outpost Briefs</span>
+        <a href="outpost-briefs.html" class="section-link">View all →</a>
+      </div>
+      <div class="articles-grid two-col" id="briefs-grid">
+        <div class="loading-state"><span class="loading-dots">Loading</span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer (injected by app.js) -->
+  <footer id="site-footer"></footer>
+
+  <script src="app.js"></script>
+  <script>
+    async function loadHome() {
+      const items = await fetchRSS();
+
+      // Latest (3 most recent, first as featured)
+      const latestGrid = document.getElementById('latest-grid');
+      if (!items) {
+        latestGrid.innerHTML = renderError();
+      } else if (items.length === 0) {
+        latestGrid.innerHTML = renderError('No articles found yet.');
+      } else {
+        const latest = items.slice(0, 4);
+        latestGrid.innerHTML = latest.map((item, i) => renderCard(item, { featured: i === 0 })).join('');
+      }
+
+      // Per-stream grids (3 each)
+      const streams = ['reports', 'presscheck', 'atheism'];
+      streams.forEach(key => {
+        const el = document.getElementById(`${key}-grid`);
+        if (!items) { el.innerHTML = renderError(); return; }
+        const filtered = filterByStream(items, key).slice(0, 3);
+        if (filtered.length === 0) {
+          el.innerHTML = `<div class="loading-state">No articles yet — <a href="${CONFIG.substackUrl}" target="_blank" style="color:var(--gold)">visit Substack</a></div>`;
+        } else {
+          el.innerHTML = filtered.map(item => renderCard(item, { streamKey: key })).join('');
+        }
+      });
+
+      // Briefs (2 col, 2 items)
+      const briefsEl = document.getElementById('briefs-grid');
+      if (!items) { briefsEl.innerHTML = renderError(); return; }
+      const briefs = filterByStream(items, 'briefs').slice(0, 2);
+      if (briefs.length === 0) {
+        briefsEl.innerHTML = `<div class="loading-state">No briefs yet — <a href="${CONFIG.substackUrl}" target="_blank" style="color:var(--gold)">visit Substack</a></div>`;
+      } else {
+        briefsEl.innerHTML = briefs.map(item => renderCard(item, { streamKey: 'briefs' })).join('');
+      }
+    }
+
+    loadHome();
+  </script>
+</body>
+</html>

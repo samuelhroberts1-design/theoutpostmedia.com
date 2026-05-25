@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outpost Briefs — Outpost Media</title>
+  <meta name="description" content="Concise, educational content — Concept Files, Atlas Files, and Flashpoint Files. Clear, durable, and referenceable.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="briefs">
+
+  <header id="site-nav"></header>
+
+  <div class="page-header">
+    <div class="container fade-up">
+      <div class="stream-color-bar" style="background:var(--briefs)"></div>
+      <p class="eyebrow" style="color:var(--briefs);margin-bottom:0.75rem">Content Stream</p>
+      <h1>Outpost Briefs</h1>
+      <p>Concise, educational content designed to be clear, durable, and referenceable — covering political, economic, and social concepts; country and regional breakdowns; and key historical events and turning points.</p>
+    </div>
+  </div>
+
+  <main class="stream-articles container">
+
+    <!-- Sub-tabs for the three Brief types -->
+    <div class="briefs-tabs" role="tablist">
+      <button class="briefs-tab active" data-type="all" role="tab" aria-selected="true" onclick="switchTab(this, 'all')">
+        All Briefs
+      </button>
+      <button class="briefs-tab" data-type="concept" role="tab" aria-selected="false" onclick="switchTab(this, 'concept')">
+        Concept Files
+      </button>
+      <button class="briefs-tab" data-type="atlas" role="tab" aria-selected="false" onclick="switchTab(this, 'atlas')">
+        Atlas Files
+      </button>
+      <button class="briefs-tab" data-type="flashpoint" role="tab" aria-selected="false" onclick="switchTab(this, 'flashpoint')">
+        Flashpoint Files
+      </button>
+    </div>
+
+    <div class="articles-grid" id="articles-grid">
+      <div class="loading-state"><span class="loading-dots">Loading</span></div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="app.js"></script>
+  <script>
+    let allBriefs = [];
+
+    // Sub-type detection within Briefs
+    function getBriefType(item) {
+      const cats = (item.categories || []).map(c => c.toLowerCase());
+      const title = (item.title || '').toLowerCase();
+
+      if (cats.some(c => c.includes('concept file')) || title.includes('concept file')) return 'concept';
+      if (cats.some(c => c.includes('atlas file')) || title.includes('atlas file')) return 'atlas';
+      if (cats.some(c => c.includes('flashpoint file')) || title.includes('flashpoint file')) return 'flashpoint';
+      return 'other';
+    }
+
+    function switchTab(btn, type) {
+      document.querySelectorAll('.briefs-tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      renderBriefs(type);
+    }
+
+    function renderBriefs(type) {
+      const grid = document.getElementById('articles-grid');
+      const filtered = type === 'all'
+        ? allBriefs
+        : allBriefs.filter(item => getBriefType(item) === type);
+
+      if (filtered.length === 0) {
+        const label = type === 'all' ? 'Outpost Briefs' : `${type.charAt(0).toUpperCase()+type.slice(1)} Files`;
+        grid.innerHTML = `<div class="loading-state">No ${label} yet — <a href="${CONFIG.substackUrl}" target="_blank" style="color:var(--gold)">check Substack</a><br><br><small style="font-size:0.7rem;color:var(--text-muted)">Tag posts "Concept File", "Atlas File", or "Flashpoint File" to categorise them.</small></div>`;
+      } else {
+        grid.innerHTML = filtered.map(item => renderCard(item, { streamKey: 'briefs' })).join('');
+      }
+    }
+
+    async function loadStream() {
+      const grid = document.getElementById('articles-grid');
+      const items = await fetchRSS();
+      if (!items) { grid.innerHTML = renderError(); return; }
+      allBriefs = filterByStream(items, 'briefs');
+      renderBriefs('all');
+    }
+
+    loadStream();
+  </script>
+</body>
+</html>

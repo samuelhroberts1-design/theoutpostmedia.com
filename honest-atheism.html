@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Honest Atheism — Outpost Media</title>
+  <meta name="description" content="Writings on religion, belief, and secularism in modern society — all ideas with significant social power should be open to honest examination.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="atheism">
+
+  <header id="site-nav"></header>
+
+  <div class="page-header">
+    <div class="container fade-up">
+      <div class="stream-color-bar" style="background:var(--atheism)"></div>
+      <p class="eyebrow" style="color:var(--atheism);margin-bottom:0.75rem">Content Stream</p>
+      <h1>Honest Atheism</h1>
+      <p>Writings on religion, belief, and secularism in modern society. These essays work on the principle that all ideas with significant social power should be open to questioning, examination, and criticism — not out of hostility, but responsibility.</p>
+    </div>
+  </div>
+
+  <main class="stream-articles container">
+    <div class="articles-grid" id="articles-grid">
+      <div class="loading-state"><span class="loading-dots">Loading</span></div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="app.js"></script>
+  <script>
+    async function loadStream() {
+      const grid = document.getElementById('articles-grid');
+      const items = await fetchRSS();
+      if (!items) { grid.innerHTML = renderError(); return; }
+      const filtered = filterByStream(items, 'atheism');
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="loading-state">No Honest Atheism essays yet — <a href="${CONFIG.substackUrl}" target="_blank" style="color:var(--gold)">check Substack</a><br><br><small style="font-size:0.7rem;color:var(--text-muted)">Tip: tag your Substack posts with "Honest Atheism" to display them here automatically.</small></div>`;
+      } else {
+        grid.innerHTML = filtered.map(item => renderCard(item, { streamKey: 'atheism' })).join('');
+      }
+    }
+    loadStream();
+  </script>
+</body>
+</html>
