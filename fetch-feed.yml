@@ -1,0 +1,27 @@
+name: Fetch Substack Feed
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # runs every hour automatically
+  workflow_dispatch:        # also lets you trigger it manually
+
+jobs:
+  fetch-feed:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch and parse RSS feed
+        run: python3 fetch_feed.py
+
+      - name: Commit feed.json if changed
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add feed.json
+          git diff --staged --quiet || git commit -m "Update feed.json"
+          git push
