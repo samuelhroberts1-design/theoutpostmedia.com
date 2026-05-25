@@ -1,13 +1,12 @@
 /* ============================================================
    OUTPOST MEDIA — app.js
-   Shared utilities: nav, RSS fetching, article rendering
    ============================================================ */
 
-// ── CONFIGURATION ─────────────────────────────────────────────
 const CONFIG = {
   substackUrl: 'https://outpostmedia.substack.com',
-  rssApi: 'https://api.rss2json.com/v1/api.json',
   rssFeed: 'https://outpostmedia.substack.com/feed',
+  // CORS proxy to fetch RSS directly (no API key needed)
+  corsProxy: 'https://api.allorigins.win/get?url=',
   maxItems: 50,
 
   streams: {
@@ -15,71 +14,56 @@ const CONFIG = {
       label: 'Outpost Reports',
       slug: 'outpost-reports',
       color: '#c49a38',
-      cssVar: '--reports',
-      tags: ['outpost reports', 'reports'],
-      description: 'Long-form essays examining politics, society, culture, and institutions — slowing down the conversation to prioritise context, complexity, and the underdiscussed.',
+      description: 'Long-form essays examining politics, society, culture, and institutions.',
     },
     presscheck: {
       label: 'Press Check',
       slug: 'press-check',
       color: '#4e8ab0',
-      cssVar: '--presscheck',
-      tags: ['press check', 'media criticism'],
-      description: 'Media criticism focused on narratives, framing, omissions, and incentives. Not anti-media — media-aware, with a particular focus on the ABC.',
+      description: 'Media criticism focused on narratives, framing, omissions, and incentives.',
     },
     atheism: {
       label: 'Honest Atheism',
       slug: 'honest-atheism',
       color: '#b85840',
-      cssVar: '--atheism',
-      tags: ['honest atheism', 'atheism', 'religion'],
-      description: 'Writings on religion, belief, and secularism in modern society. The principle: all ideas with significant social power should be open to honest examination.',
+      description: 'Writings on religion, belief, and secularism in modern society.',
     },
     briefs: {
       label: 'Outpost Briefs',
       slug: 'outpost-briefs',
       color: '#5a8858',
-      cssVar: '--briefs',
-      tags: ['outpost briefs', 'concept file', 'atlas file', 'flashpoint file', 'briefs'],
-      description: 'Concise, educational content designed to be clear, durable, and referenceable — Concept Files, Atlas Files, and Flashpoint Files.',
+      description: 'Concept Files, Atlas Files, and Flashpoint Files.',
     },
   },
 };
 
-// ── NAV SETUP ─────────────────────────────────────────────────
+// ── NAV ──────────────────────────────────────────────────────
 function buildNav(activePage) {
   const nav = document.getElementById('site-nav');
   if (!nav) return;
-
   const pages = [
-    { label: 'Home', href: 'index.html', key: 'home' },
-    { label: 'Reports', href: 'outpost-reports.html', key: 'reports' },
-    { label: 'Press Check', href: 'press-check.html', key: 'presscheck' },
-    { label: 'Honest Atheism', href: 'honest-atheism.html', key: 'atheism' },
-    { label: 'Outpost Briefs', href: 'outpost-briefs.html', key: 'briefs' },
-    { label: 'About', href: 'about.html', key: 'about' },
+    { label: 'Home',           href: 'index.html',          key: 'home' },
+    { label: 'Reports',        href: 'outpost-reports.html', key: 'reports' },
+    { label: 'Press Check',    href: 'press-check.html',     key: 'presscheck' },
+    { label: 'Honest Atheism', href: 'honest-atheism.html',  key: 'atheism' },
+    { label: 'Outpost Briefs', href: 'outpost-briefs.html',  key: 'briefs' },
+    { label: 'About',          href: 'about.html',           key: 'about' },
   ];
-
   nav.innerHTML = `
     <div class="nav-inner">
       <a class="nav-logo" href="index.html">
         <img src="logo.png" alt="Outpost Media" onerror="this.style.display='none'">
         <div class="nav-wordmark">Outpost <span>Media</span></div>
       </a>
-
       <nav class="nav-links" aria-label="Main navigation">
-        ${pages.map(p => `
-          <a href="${p.href}" class="${activePage === p.key ? 'active' : ''}">${p.label}</a>
-        `).join('')}
+        ${pages.map(p => `<a href="${p.href}" class="${activePage === p.key ? 'active' : ''}">${p.label}</a>`).join('')}
         <div class="nav-divider"></div>
         <a href="${CONFIG.substackUrl}" class="nav-substack" target="_blank" rel="noopener">Subscribe ↗</a>
       </nav>
-
       <button class="nav-hamburger" aria-label="Toggle menu" onclick="toggleMobileNav()">
         <span></span><span></span><span></span>
       </button>
     </div>
-
     <nav class="nav-mobile" id="nav-mobile" aria-label="Mobile navigation">
       ${pages.map(p => `<a href="${p.href}">${p.label}</a>`).join('')}
       <a href="${CONFIG.substackUrl}" target="_blank" rel="noopener" style="color:var(--gold)">Subscribe on Substack ↗</a>
@@ -95,7 +79,6 @@ function toggleMobileNav() {
 function buildFooter() {
   const footer = document.getElementById('site-footer');
   if (!footer) return;
-
   footer.innerHTML = `
     <div class="container">
       <div class="footer-inner">
@@ -106,7 +89,6 @@ function buildFooter() {
           </div>
           <p class="footer-tagline">Independent. Educational. Honest.</p>
         </div>
-
         <div class="footer-links">
           <p class="footer-links-title">Content Streams</p>
           <ul>
@@ -118,13 +100,11 @@ function buildFooter() {
             <li><a href="${CONFIG.substackUrl}" target="_blank">Substack ↗</a></li>
           </ul>
         </div>
-
         <div class="footer-substack">
           <p>All writing is published free on Substack. Subscribe to receive new pieces directly.</p>
           <a href="${CONFIG.substackUrl}" class="btn btn-gold" target="_blank" rel="noopener">Subscribe Free ↗</a>
         </div>
       </div>
-
       <div class="footer-bottom">
         <p>© ${new Date().getFullYear()} Outpost Media. Australian in origin, global in outlook.</p>
         <p>Judge Freely. Treat Equally.</p>
@@ -133,63 +113,112 @@ function buildFooter() {
   `;
 }
 
-// ── RSS FETCHING ───────────────────────────────────────────────
+// ── RSS FETCH (direct, no API key) ────────────────────────────
 async function fetchRSS() {
-  const url = `${CONFIG.rssApi}?rss_url=${encodeURIComponent(CONFIG.rssFeed)}&count=${CONFIG.maxItems}`;
   try {
-    const res = await fetch(url);
+    const proxyUrl = CONFIG.corsProxy + encodeURIComponent(CONFIG.rssFeed);
+    const res = await fetch(proxyUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (data.status !== 'ok') throw new Error('RSS parse error');
-    return data.items || [];
+    const json = await res.json();
+    const xmlStr = json.contents;
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlStr, 'text/xml');
+    const items = Array.from(xml.querySelectorAll('item'));
+    return items.map(parseItem);
   } catch (err) {
     console.error('RSS fetch failed:', err);
     return null;
   }
 }
 
-// ── ITEM CATEGORISATION ────────────────────────────────────────
-function getItemStream(item) {
-  const cats = (item.categories || []).map(c => c.toLowerCase());
-  const title = (item.title || '').toLowerCase();
+function parseItem(item) {
+  const get = (tag) => item.querySelector(tag)?.textContent?.trim() || '';
+  const enclosure = item.querySelector('enclosure');
 
-  for (const [key, stream] of Object.entries(CONFIG.streams)) {
-    for (const tag of stream.tags) {
-      if (cats.some(c => c.includes(tag)) || title.includes(tag)) return key;
-    }
+  // Extract thumbnail from enclosure or from content img tags
+  let thumbnail = enclosure?.getAttribute('url') || '';
+  if (!thumbnail) {
+    // Try to pull first image src from content
+    const content = get('encoded') || get('description');
+    const match = content.match(/src="(https:\/\/substackcdn[^"]+)"/);
+    if (match) thumbnail = match[1];
   }
-  return null;
+
+  return {
+    title:       get('title'),
+    link:        get('link'),
+    pubDate:     get('pubDate'),
+    description: get('description'),
+    content:     get('encoded') || get('description'),
+    thumbnail,
+  };
+}
+
+// ── STREAM DETECTION (from title & content) ───────────────────
+// Since Substack doesn't pass categories through RSS,
+// we detect stream from the article title and content preamble.
+function getItemStream(item) {
+  const title   = (item.title   || '').toLowerCase();
+  const content = (item.content || '').toLowerCase().slice(0, 400); // check preamble only
+
+  // Briefs — detected from title suffix pattern
+  if (title.includes('flashpoint file'))  return 'briefs';
+  if (title.includes('atlas file'))       return 'briefs';
+  if (title.includes('concept file'))     return 'briefs';
+  if (title.includes('outpost brief'))    return 'briefs';
+
+  // Press Check — title or preamble
+  if (title.includes('press check'))      return 'presscheck';
+  if (content.includes('press check is a series')) return 'presscheck';
+
+  // Honest Atheism — title or preamble
+  if (title.includes('honest atheism'))   return 'atheism';
+  if (content.includes('honest atheism is a space')) return 'atheism';
+
+  // Outpost Reports — preamble
+  if (content.includes('outpost reports')) return 'reports';
+
+  // Briefs preamble (fallback)
+  if (content.includes('outpost briefs are here')) return 'briefs';
+
+  return 'reports'; // anything undetected defaults to Outpost Reports
+}
+
+// Sub-type within Briefs
+function getBriefType(item) {
+  const title = (item.title || '').toLowerCase();
+  if (title.includes('concept file'))   return 'concept';
+  if (title.includes('atlas file'))     return 'atlas';
+  if (title.includes('flashpoint file')) return 'flashpoint';
+  return 'other';
 }
 
 function filterByStream(items, streamKey) {
   return items.filter(item => getItemStream(item) === streamKey);
 }
 
-// ── DATE FORMATTING ────────────────────────────────────────────
+// ── DATE ──────────────────────────────────────────────────────
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-// ── EXCERPT CLEANING ───────────────────────────────────────────
+// ── EXCERPT ───────────────────────────────────────────────────
 function cleanExcerpt(html, maxLen = 160) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html || '';
-  const text = tmp.textContent || tmp.innerText || '';
+  // Remove the strikethrough preamble (~~...~~) if present
+  const text = (tmp.textContent || tmp.innerText || '').replace(/~~.*?~~/gs, '').trim();
   return text.length > maxLen ? text.slice(0, maxLen).trimEnd() + '…' : text;
 }
 
-// ── CARD RENDERING ─────────────────────────────────────────────
+// ── CARD HTML ─────────────────────────────────────────────────
 function renderCard(item, { featured = false, streamKey = null } = {}) {
-  const stream = streamKey ? CONFIG.streams[streamKey] : null;
-  const detectedKey = getItemStream(item);
-  const detectedStream = detectedKey ? CONFIG.streams[detectedKey] : null;
-  const activeStream = stream || detectedStream;
-  const activeKey = streamKey || detectedKey;
-
-  const thumb = item.thumbnail && item.thumbnail !== '' ? item.thumbnail : null;
-  const excerpt = cleanExcerpt(item.description);
+  const detectedKey  = streamKey || getItemStream(item);
+  const activeStream = detectedKey ? CONFIG.streams[detectedKey] : null;
+  const thumb        = item.thumbnail || '';
+  const excerpt      = cleanExcerpt(item.description || item.content);
 
   if (featured && thumb) {
     return `
@@ -206,8 +235,7 @@ function renderCard(item, { featured = false, streamKey = null } = {}) {
             <a href="${item.link}" class="article-read-link" target="_blank" rel="noopener">Read on Substack</a>
           </div>
         </div>
-      </article>
-    `;
+      </article>`;
   }
 
   return `
@@ -222,24 +250,13 @@ function renderCard(item, { featured = false, streamKey = null } = {}) {
       <div class="article-footer">
         <a href="${item.link}" class="article-read-link" target="_blank" rel="noopener">Read on Substack</a>
       </div>
-    </article>
-  `;
+    </article>`;
 }
 
-function renderLoading(colspan = 3) {
-  return `<div class="loading-state"><span class="loading-dots">Loading</span></div>`;
+function renderError(msg) {
+  return `<div class="loading-state"><p style="margin-bottom:1rem">${msg || 'Could not load articles.'}</p><a href="${CONFIG.substackUrl}" class="btn" target="_blank">Visit Substack ↗</a></div>`;
 }
 
-function renderError(message = 'Could not load articles. Visit Substack directly.') {
-  return `
-    <div class="loading-state">
-      <p style="margin-bottom:1rem">${message}</p>
-      <a href="${CONFIG.substackUrl}" class="btn" target="_blank">Visit Substack ↗</a>
-    </div>
-  `;
-}
-
-// ── HELPER ────────────────────────────────────────────────────
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -247,8 +264,6 @@ function escapeHtml(str) {
 
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Active nav detection
-  const page = document.body.dataset.page || 'home';
-  buildNav(page);
+  buildNav(document.body.dataset.page || 'home');
   buildFooter();
 });
